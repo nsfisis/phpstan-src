@@ -2,11 +2,13 @@
 
 namespace PHPStan\Type;
 
+use PHPStan\Analyser\OutOfClassScope;
 use PHPStan\Type\Accessory\AccessoryArrayListType;
 use PHPStan\Type\Accessory\AccessoryNonEmptyStringType;
 use PHPStan\Type\Accessory\AccessoryType;
 use PHPStan\Type\Accessory\HasOffsetType;
 use PHPStan\Type\Accessory\HasOffsetValueType;
+use PHPStan\Type\Accessory\HasPropertyValueType;
 use PHPStan\Type\Accessory\HasPropertyType;
 use PHPStan\Type\Accessory\NonEmptyArrayType;
 use PHPStan\Type\Accessory\OversizedArrayType;
@@ -1084,6 +1086,20 @@ class TypeCombinator
 						array_splice($types, $i--, 1);
 						$typesCount--;
 						continue 2;
+					}
+
+					if ($types[$i] instanceof ObjectShapeType && $types[$j] instanceof HasPropertyValueType) {
+						if (!$types[$i]->hasProperty($types[$j]->getPropertyName())->yes()) {
+							return new NeverType();
+						}
+						$propertyType = $types[$i]->getProperty($types[$j]->getPropertyName(), new OutOfClassScope())->getReadableType();
+						if (!$propertyType->equals($types[$j]->getValueType())) {
+							return new NeverType();
+						}
+
+						array_splice($types, $j--, 1);
+						$typesCount--;
+						continue;
 					}
 
 					if ($types[$i] instanceof ConstantArrayType && $types[$j] instanceof HasOffsetValueType) {

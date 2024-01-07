@@ -71,6 +71,7 @@ use PHPStan\TrinaryLogic;
 use PHPStan\Type\Accessory\AccessoryArrayListType;
 use PHPStan\Type\Accessory\AccessoryLiteralStringType;
 use PHPStan\Type\Accessory\HasOffsetValueType;
+use PHPStan\Type\Accessory\HasPropertyValueType;
 use PHPStan\Type\Accessory\NonEmptyArrayType;
 use PHPStan\Type\Accessory\OversizedArrayType;
 use PHPStan\Type\ArrayType;
@@ -3532,6 +3533,26 @@ class MutatingScope implements Scope
 						TypeCombinator::intersect(
 							TypeCombinator::intersect($exprVarType, TypeCombinator::union(...$types)),
 							new HasOffsetValueType($dimType, $type),
+						),
+						$scope->getNativeType($expr->var),
+						$certainty,
+					);
+				}
+			}
+		}
+
+		if ($expr instanceof Expr\PropertyFetch) {
+			$propertyType = $expr->name instanceof Node\Identifier
+				? new ConstantStringType($expr->name->toString())
+				: $scope->getType($expr->name);
+			if ($propertyType instanceof ConstantStringType) {
+				$exprVarType = $scope->getType($expr->var);
+				if (!$exprVarType instanceof MixedType && !$exprVarType->isObject()->no()) {
+					$scope = $scope->specifyExpressionType(
+						$expr->var,
+						TypeCombinator::intersect(
+							$exprVarType,
+							new HasPropertyValueType($propertyType->getValue(), $type),
 						),
 						$scope->getNativeType($expr->var),
 						$certainty,
